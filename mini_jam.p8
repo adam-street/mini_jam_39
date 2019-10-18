@@ -3,8 +3,8 @@ version 18
 __lua__
 
 game_map = nil
-gamp_map_height = 56
-game_map_width = 56
+gamp_map_height = 15
+game_map_width = 15
 
 wall_spr = 1
 floor_spr = 2
@@ -102,14 +102,18 @@ function create_map(h, w)
         for y=1,w do
             m[x][y] = {}
             
+            -- set wall hp
+            m[x][y].hp = flr(rnd(3) + 1)
+
             -- all edges are walls
             if (y == 1 or x == 1 or y == h or x == w) then
                 m[x][y].s = wall_spr
+                m[x][y].hp = 99999
                 goto ⌂
             end
 
             -- random fill rest
-            if (rnd(100) + 1 < 75) then
+            if (rnd(100) + 1 < 45) then
                 m[x][y].s = floor_spr
             else 
                 m[x][y].s = wall_spr
@@ -123,7 +127,41 @@ function create_map(h, w)
         end
     end
 
-    -- cleanup
+    -- add walls
+    for x=1,h do
+        for y=1,w do
+            if (m[x][y].s == 1 and x > 1 and x < w and y > 1 and y < h) then
+                nc = 0
+                if (m[x+1][y].s == 2) nc += 1
+                if (m[x-1][y].s == 2) nc += 1
+                if (m[x][y+1].s == 2) nc += 1
+                if (m[x][y-1].s == 2) nc += 1
+
+                if (nc < 1) m[x][y].s = 1
+            end
+        end
+    end 
+
+    -- remove walls
+    for x=1,h do
+        for y=1,w do
+            if (m[x][y].s == 1 and x > 1 and x < w and y > 1 and y < h) then
+                nc = 0
+                if (m[x+1][y].s == 1) nc += 1
+                if (m[x-1][y].s == 1) nc += 1
+                if (m[x][y+1].s == 1) nc += 1
+                if (m[x][y-1].s == 1) nc += 1
+                if (m[x-1][y-1].s == 2) nc += 1
+                if (m[x+1][y+1].s == 2) nc += 1
+                if (m[x+1][y-1].s == 2) nc += 1
+                if (m[x-1][y+1].s == 2) nc += 1
+
+                if (nc < 4) m[x][y].s = 2
+            end
+        end
+    end
+
+    -- remove walls
     for x=1,h do
         for y=1,w do
             if (m[x][y].s == 1 and x > 1 and x < w and y > 1 and y < h) then
@@ -136,7 +174,7 @@ function create_map(h, w)
                 if (nc < 2) m[x][y].s = 2
             end
         end
-    end 
+    end
 
     return m
 end
@@ -236,8 +274,18 @@ function move_player(a, c)
     -- check for collision
     xc = abs(x * m)
     repeat
-        if (game_map[player.x + x][player.y].s == 1) then
-            xc = 0
+        tile = game_map[player.x + x][player.y]
+        if (tile.s != 2) then
+
+            -- if hit wall 
+            if (tile.s == 1) then
+                tile.hp -= xc
+                if (tile.hp <= 0) tile.s = 2
+                if (tile.hp < 0) xc = abs(tile.hp)
+            else
+                xc = 0
+            end
+            
         else
             player.x += x
             xc -= 1
@@ -246,7 +294,7 @@ function move_player(a, c)
 
     yc = abs(y * m)
     repeat
-        if (game_map[player.x][player.y + y].s == 1) then
+        if (game_map[player.x][player.y + y].s != 2) then
             yc = 0
         else
             player.y += y
