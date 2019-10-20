@@ -3,15 +3,15 @@ version 18
 __lua__
 
 game_map = nil
-gamp_map_height = 3
-game_map_width = 3
+gamp_map_height = 4
+game_map_width = 4
 
 wall_spr = 1
 floor_spr = 2
 player = {}
 
 actions = {18,19,20,21}
-modifiers = {34,35,36,37}
+modifiers = {34,35,36}
 
 cards = {}
 card_weights = {1,1,1,1}
@@ -29,6 +29,10 @@ door_y = nil
 
 cam_x = 0
 cam_y = 0
+
+monster_count = 1
+attack_distance = 6
+monsters = {}
 
 debug = 0
 
@@ -48,12 +52,15 @@ function create_level()
     game_map_width += 3
 
     player = create_actor(1, 1)
+    player.is_player = true
     game_map = create_map(gamp_map_height, game_map_width)
 
     repeat 
         player.x = flr(rnd(game_map_width) + 1)
         player.y = flr(rnd(gamp_map_height)) + 1
     until game_map[player.x][player.y].s != 1
+
+    spawn_monsters()
 
     player.sprite = 3
     move_camera()
@@ -64,7 +71,11 @@ function _update()
     input = get_input()
 
     if (input.b1 and #cards > 0) then
-        move_player(player, cards[selected_card])
+        move_actor(player, cards[selected_card])
+
+        for i=1,#monsters do
+            move_monster(monsters[i])
+        end
 
         if (cards[selected_card].action == -1) then
             draw_hand()
@@ -78,6 +89,10 @@ function _update()
             sfx(0)
             flip_card(cards[selected_card])
             card_flips -= 1
+
+            for i=1,#monsters do
+            move_monster(monsters[i])
+            end
         else
             -- error sfx here
         end
@@ -112,6 +127,9 @@ function _draw()
 
     -- draw player
     draw_actor(player)
+
+    -- draw monstes
+    draw_monsters(monsters)
     
     -- draw key
     spr(54, key_x * 8, key_y * 8)
@@ -148,8 +166,10 @@ function draw_hand()
 
     -- draw new hand
     for i=1,hand_size do
-        s = weighted_select(card_weights)
-        card_weights[s] += 1
+        -- s = weighted_select(card_weights)
+        -- card_weights[s] += 1
+
+        s = flr(rnd(#actions) + 1)
 
         cards[i] = create_card(actions[s], modifiers[flr(rnd(#modifiers)) + 1])
         -- cards[i] = create_card(actions[s], 1)
@@ -372,99 +392,178 @@ function create_actor(x, y)
     return a
 end
 
-function move_player(a, c)
-    x = 0
-    y = 0
-    m = 0
+function move_actor(act, c)
+    mm = map_action(c)
+
+    r = check_collision(act, mm.x, mm.y, mm.m, false)
+    act.x = r.x
+    act.y = r.y
+
+    if (act.is_player == true) then
+        -- check if over key
+        if (act.x == key_x and act.y == key_y) then
+            if (key_held == false) sfx(1)
+            key_held = true
+        end
+
+        if (key_held) then
+            key_x = act.x
+            key_y = act.y
+        end
+
+        -- check if over door with key
+        if (act.x == door_x and act.y == door_y and key_held ) then
+            sfx(1)
+            create_level()
+        end
+
+        move_camera()
+    end
+end
+
+function map_action(c)
+    r = {}
+    r.x = 0
+    r.y = 0
+    r.m = 0
 
     -- action mapping
-    if (c.action == 18) y = -1
-    if (c.action == 19) y = 1
-    if (c.action == 20) x = -1
-    if (c.action == 21) x = 1
+    if (c.action == 18) r.y = -1
+    if (c.action == 19) r.y = 1
+    if (c.action == 20) r.x = -1
+    if (c.action == 21) r.x = 1
 
     -- modifier mapping
-    if (c.modifier == 34) m = 1
-    if (c.modifier == 35) m = 2
-    if (c.modifier == 36) m = 3
-    if (c.modifier == 37) m = 4
+    if (c.modifier == 34) r.m = 1
+    if (c.modifier == 35) r.m = 2
+    if (c.modifier == 36) r.m = 3
+    if (c.modifier == 37) r.m = 4
+
+    return r
+end
+
+function check_collision(a, dx, dy, c, marker)
+
+    x = a.x
+    y = a.y
 
     -- check for collision
-    xc = abs(x * m)
+    xc = abs(dx * c)
     repeat
-        if (player.x + x > game_map_width - 1 or player.x + x < 2) then
+        if (x + dx > game_map_width - 1 or x + dx < 2) then
             xc = 0
         else
-            tile = game_map[player.x + x][player.y]
+            tile = game_map[x + dx][y]
             if (tile.s != 2) then
 
                 -- if hit wall 
-                if (tile.s == 1) then
+                if (tile.s == 1 and marker == false) then
                     tile.s = 2
                 end
 
                 xc = 0
             else
-                player.x += x
+                x += dx
                 xc -= 1
             end
         end
     until xc == 0
 
-    yc = abs(y * m)
+    yc = abs(y * c)
     repeat
-        if (player.y + y > gamp_map_height + 1 or player.y + y < 1) then
+        if (y + dy > gamp_map_height + 1 or y + dy < 1) then
             yc = 0
         else
-            tile = game_map[player.x][player.y + y]
+            tile = game_map[x][y + dy]
             if (tile.s != 2) then
 
                 -- if hit wall 
-                if (tile.s == 1) then
+                if (tile.s == 1 and marker == false) then
                     tile.s = 2
                 end
                 
                 yc = 0
             else
-                player.y += y
+                y += dy
                 yc -= 1
             end
         end
     until yc == 0
 
-    -- check if over key
-    if (player.x == key_x and player.y == key_y) then
-        if (key_held == false) sfx(1)
-        key_held = true
-    end
-
-    if (key_held) then
-        key_x = player.x
-        key_y = player.y
-    end
-
-    -- check if over door with key
-    if (player.x == door_x and player.y == door_y and key_held ) then
-        sfx(1)
-        create_level()
-    end
-
-    move_camera()
+    r = {}
+    r.x = x
+    r.y = y
+    return r
 end
 
 function draw_actor(a)
     spr(a.sprite, a.x * 8, a.y * 8)
 end
 
+function spawn_monsters()
+    for i=1,monster_count do
+        add(monsters, spawn_monster())
+    end
+end
+
+function spawn_monster()
+
+    repeat 
+        x = flr(rnd(game_map_width)) + 1
+        y = flr(rnd(gamp_map_height)) + 1
+    until game_map[x][y].s != 1
+
+    m = create_actor(x, y)
+    m.sprite = 4
+    m.distance = get_distance(m.x, m.y, player.x, player.y)
+    m.is_player = false
+
+    get_monster_next_move(m)
+    return zm
+end
+
+function draw_monsters(m)
+    for i=1,#m do
+        draw_actor(monsters[i])
+        spr(6, monsters[i].next_x * 8, monsters[i].next_y * 8)
+    end
+end
+
+function move_monster(m)
+    move_actor(m, m.next_move)
+    get_monster_next_move(m)
+end
+
+function get_monster_next_move(m)
+    m.next_move = create_card(actions[flr(rnd(#actions)) + 1], modifiers[flr(rnd(#modifiers)) + 1])
+    
+    mm = map_action(m.next_move)
+    r = check_collision(m, mm.x, mm.y, mm.m, true)
+    m.next_x = r.x
+    m.next_y = r.y
+
+    debug = m.next_y
+
+
+    -- m.distance = get_distance(m.x, m.y, player.x, player.y)
+    -- if (m.distance <= attack_distance) then
+    -- else
+    -- end
+end
+
+function get_distance(x1, y1, x2, y2)
+    return flr(sqrt((x2-x1)^2 + (y2-y1)^2))
+end
+
 __gfx__
-0000000011555511555555550099990000bbbb000444440000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000005511115551555515099999990baaaab004ffff4000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0070070011111111555555550ffdfdf0baaa77ab0ff4f4f000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000111111115515555500ffff00baaa71ab0ffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770005511115555555515000ff000baaa77ab00ffff0000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700115555115555555508888880baaaaaab0333333000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000001151151155155155f088880fbaaaaaab0033330000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000551111555555555500c00c000bbbbbb00020020000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000011555511555555550099990000bbbb000444440088000088000000000000000000000000000000000000000000000000000000000000000000000000
+000000005511115551555515099999990baaaab004ffff4080000008000000000000000000000000000000000000000000000000000000000000000000000000
+0070070011111111555555550ffdfdf0baaa77ab0ff4f4f000800800000000000000000000000000000000000000000000000000000000000000000000000000
+00077000111111115515555500ffff00baaa71ab0ffffff000088000000000000000000000000000000000000000000000000000000000000000000000000000
+000770005511115555555515000ff000baaa77ab00ffff0000088000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700115555115555555508888880baaaaaab0333333000800800000000000000000000000000000000000000000000000000000000000000000000000000
+000000001151151155155155f088880fbaaaaaab0033330080000008000000000000000000000000000000000000000000000000000000000000000000000000
+00000000551111555555555500c00c000bbbbbb00020020088000088000000000000000000000000000000000000000000000000000000000000000000000000
 0dddddd0099999900000000000000000000000000000000000000000000000000dddddd009999990000000000000000000000000000000000000000000000000
 d555555d95555559000000000000000000000000000000000000000000000000d655556d96555569000000000000000000000000000000000000000000000000
 d555555d95555559000660000066660000066600006660000000000000000000d565565d95655659000000000000000000000000000000000000000000000000
@@ -481,14 +580,14 @@ d555555d95555559000060000060000000000600000006000000000000000000d555555dd555555d
 d555555d955555590000600000666600006666000000060000000000000000005dddddd55dddddd5000000000000000000000000000000000000000000000000
 d555555d95555559000000000000000000000000000000000000000000000000d555555dd555555d000000000000000000000000000000000000000000000000
 0dddddd0099999900000000000000000000000000000000000000000000000000dddddd00dddddd0000000000000000000000000000000000000000000000000
-00000000000000000004400000044000000440000004400000000000006666000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000004400000044000000440000004400000000000064444600000000000000000000000000000000000000000000000000000000000000000
-000000000000000001688810016bbb10016ccc100169991000000000644444460000000000000000000000000000000000000000000000000000000000000000
+00000000007007000004400000044000000440000004400000000000006666000000000000000000000000000000000000000000000000000000000000000000
+00000000070000700004400000044000000440000004400000000000064444600000000000000000000000000000000000000000000000000000000000000000
+000000007000000701688810016bbb10016ccc100169991000000000644444460000000000000000000000000000000000000000000000000000000000000000
 000000000000000016688881166bbbb1166cccc11669999100000000644444460000000000000000000000000000000000000000000000000000000000000000
 0000000000000000188888811bbbbbb11cccccc11999999100000000649444460000000000000000000000000000000000000000000000000000000000000000
-00000000000000000188881001bbbb1001cccc100199991000007000644444460000000000000000000000000000000000000000000000000000000000000000
-00000000000000000011110000111100001111000011110000070777644444460000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000007007644444460000000000000000000000000000000000000000000000000000000000000000
+00000000700000070188881001bbbb1001cccc100199991000009000644444460000000000000000000000000000000000000000000000000000000000000000
+00000000070000700011110000111100001111000011110000090999644444460000000000000000000000000000000000000000000000000000000000000000
+00000000007777000000000000000000000000000000000000009009644444460000000000000000000000000000000000000000000000000000000000000000
 __label__
 0000000011111111dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd11111111dddddddddddddddd11111111dddddddd
 0000000011111111dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd11111111dddddddddddddddd11111111dddddddd
