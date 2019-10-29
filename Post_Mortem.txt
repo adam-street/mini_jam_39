@@ -1,0 +1,23 @@
+This game was made for the Mini Jam 39: Monsters(https://itch.io/jam/mini-jam-39-monsters) game jam, so I only had 72 hours.
+Starting off I knew that I needed to keep it very simple to make the timeline so I decided on pico-8 for my game engine.
+After that I moved on to crafting a suitable idea, the theme was monsters and the limitation was roguelike. I have played some roguelike's but did some more research into what makes a game "roguelike". I landed on three themes. Turn based movement, and random map generation and perma-death.
+
+I had an itch to start coding, but still wasn’t sure what I wanted to do gameplay wise yet, so first thing I worked on was the map generation.
+Using a simple for loop with percentage changes, I was able to generate a square map with floors tiles and wall tiles. I then looped over the
+2d array of tiles and looked for any there where singles, a floor tile surrounded by walls, or vice versa and filled them in respectively.
+
+The start of the second day, I started working on gameplay. I had to work so I spent most of the first 10 hours that day just thinking.
+Again I needed to keep it simple so I decided to use the classic rouge mechanic of move over to kill, but I needed a way to make the
+Movement more interesting that just arrow keys. After a while of thinking I landed on using a card based system to randomize the movement and add a layer of strategy to when you should use the cards in your hand.
+
+I got home and when fast to work. After I implemented the cards movement system and added a key to pickup and a door, I noticed 2 big
+Problems with my design. One, it really sucked to need to go down 1 space but have to shuffle 10 times to get a down card. So the fast and dirty solution to this was to be able to flip the cards, so up can be up or down, and right can be right or left. This still allowed
+For some obstacle you can’t always go down, but you could go down enough for it no to be frustrating when you get a streak of bad luck.
+I toyed with the idea of limiting this in some way, but I just moved on as it felt pretty good to me as is. Two, keys and doors where 
+Getting placed in areas that were inaccessible. So there where two ways to handle this. I could add some more logic to map generation or
+Just make the player able to destroy walls that where not the edge of the map. Again, time was the driving force in this decision. I chose to quickly add destructible walls.
+
+The third day was a mad dash to add enemies, sfx, menus, and polish as much as I could. There is not much to say on this day other than for the most part I tried to take the path of least resistance.
+
+The driving force behind almost all my designs was time, I needed to find a solution to my problems that was easily to implement and
+Effective. I am very happy with what I was able to produce over the 72 hours by keeping the scope as small.
